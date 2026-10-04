@@ -414,8 +414,10 @@ $("snap").onclick = () => {
 };
 
 // ── Form reset ────────────────────────────────────────────────────────────────
-function resetForm() {
-  document.title = "Employee Onboarding - BN POWER ENTERPRISES";
+function resetForm(keepTitle = false) {
+  if (!keepTitle) {
+    document.title = "Employee Onboarding - " + COMPANY;
+  }
   $("f").reset(); $("age").value = ""; photo = "";
   $("preview").removeAttribute("src"); $("exs").innerHTML = ""; addEx();
   editId = null; $("ft").textContent = "New employee"; setMsg("");
@@ -489,7 +491,9 @@ $("f").onsubmit = async e => {
   }
 
   $("saveBtn").disabled = false;
-  render(); printSheet(o); resetForm();
+  render();
+  printSheet(o);
+  resetForm(true);
 };
 
 // ── Render ────────────────────────────────────────────────────────────────────
@@ -578,6 +582,12 @@ function printSheet(o, photoUrl) {
   const paddr = (o.paddr || "") + (o.pin ? " - " + o.pin : "");
   const today = new Date().toLocaleDateString("en-GB").replace(/\//g, "-");
 
+  const origTitle = "Employee Onboarding - " + COMPANY;
+  const empName = (o.name || "").trim().replace(/[\\/:*?"<>|]/g, "");
+  if (empName) {
+    document.title = "Employee Onboarding - " + empName;
+  }
+
   $("sheet").innerHTML = `<div class="pg">
 <h1>${esc(COMPANY)}</h1>
 <div class="box"><div class="hd">${F("SL. NO.:", o.sl, "flex:.6")}${F("Joining Date:", fmt(o.joining), "flex:1")}${F("Site Name:", o.site, "flex:1.6")}${F("Designation:", o.desig, "flex:1.2")}</div></div>
@@ -611,10 +621,14 @@ function printSheet(o, photoUrl) {
 </div></div>`;
   setTimeout(() => {
     window.print();
-    const restore = () => { document.title = origTitle; };
+    const restore = () => {
+      document.title = origTitle;
+      window.removeEventListener("afterprint", restore);
+      window.removeEventListener("focus", restore);
+    };
     window.addEventListener("afterprint", restore, { once: true });
-    setTimeout(restore, 2000);
-  }, 200);
+    window.addEventListener("focus", restore, { once: true });
+  }, 250);
 }
 
 // ── Export / Backup / Restore ─────────────────────────────────────────────────
