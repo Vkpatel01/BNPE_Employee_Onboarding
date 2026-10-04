@@ -26,8 +26,19 @@ function doPost(e) {
 }
 
 function doGet(e) {
-  if (e.parameter.secret !== SECRET) return respond({ ok: false, error: "Unauthorized" });
-  return respond(listEmployees());
+  try {
+    const secret = e.parameter.secret;
+    if (secret !== SECRET) return respond({ ok: false, error: "Unauthorized" });
+    const action = e.parameter.action || "list";
+    if (action === "list") return respond(listEmployees());
+    const payload = JSON.parse(e.parameter.data || "{}");
+    if (action === "save")   return respond(saveEmployee(payload.data));
+    if (action === "update") return respond(updateEmployee(payload.data));
+    if (action === "delete") return respond(deleteEmployee(payload.id));
+    return respond({ ok: false, error: "Unknown action" });
+  } catch (err) {
+    return respond({ ok: false, error: err.message });
+  }
 }
 
 function respond(obj) {

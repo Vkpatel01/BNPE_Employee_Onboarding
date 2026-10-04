@@ -304,16 +304,15 @@ async function flushQueue() {
 
 // ── API calls ─────────────────────────────────────────────────────────────────
 async function apiFetch(payload) {
-  const res = await fetch(SCRIPT_URL, {
-    method: "POST",
-    mode: "no-cors",
-    body: JSON.stringify({ secret: SECRET, ...payload })
-  });
-  return { ok: true };
+  const url = new URL(SCRIPT_URL);
+  Object.assign(payload, { secret: SECRET });
+  url.searchParams.set("data", JSON.stringify(payload));
+  const res = await fetch(url.toString());
+  return res.json();
 }
 
 async function apiGet() {
-  const res = await fetch(`${SCRIPT_URL}?secret=${encodeURIComponent(SECRET)}`);
+  const res = await fetch(`${SCRIPT_URL}?secret=${encodeURIComponent(SECRET)}&action=list`);
   return res.json();
 }
 
