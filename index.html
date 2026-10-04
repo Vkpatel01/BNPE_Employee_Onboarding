@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Employee Onboarding</title>
+<title>Employee Onboarding - BN POWER ENTERPRISES</title>
 <style>
 :root{--bg:#f3f5f2;--card:#fff;--ink:#1d2a24;--mut:#5f6f67;--line:#d5ddd8;--pri:#1f6f54;--dng:#b3342b;--warn:#b36800}
 *{box-sizing:border-box}
@@ -64,9 +64,10 @@ th{background:#eef2ef;font-size:13px}
 #srEmpty{color:var(--mut);font-size:13px;margin-top:8px;display:none}
 
 @media print{
- body{background:#fff}header,main{display:none}
+ body{background:#fff}
+ header,main,#loginScreen{display:none !important}
  #sheet{display:block;font-family:"Times New Roman",Times,serif;font-size:14px;color:#000}
- #sheet .pg{border:2px solid #000;padding:6mm 7mm;height:281mm;position:relative}
+ #sheet .pg{border:2px solid #000;padding:6mm 7mm;min-height:275mm;height:auto;box-sizing:border-box;position:relative;page-break-inside:avoid}
  #sheet h1{text-align:center;font-size:20px;margin:0 0 8px}
  #sheet .box{border:1.5px solid #000;padding:5px 8px;margin-bottom:10px}
  #sheet .hd{display:flex;gap:10px;font-size:12px}
@@ -89,7 +90,7 @@ th{background:#eef2ef;font-size:13px}
 <!-- ── Login screen ── -->
 <div id="loginScreen">
   <h1>BN POWER ENTERPRISES</h1>
-  <h1>Employee Onboarding</h1>
+  <p style="font-weight:600;font-size:16px;color:#fff;margin:0">Employee Onboarding Portal</p>
   <p>Enter the access password to continue</p>
   <input type="password" id="pwdInput" placeholder="Password" autocomplete="current-password">
   <button id="loginBtn">Login</button>
@@ -105,7 +106,7 @@ th{background:#eef2ef;font-size:13px}
 </header>
 
 <main>
-<div id="pendingBar">⚠️ <strong>Unsaved records pending sync.</strong> Check your internet connection. Data is safe locally — will sync when online.</div>
+<div id="pendingBar">⚠️ <strong>Unsaved records pending sync.</strong> Check your internet connection. Data is safely saved locally — will sync when online.</div>
 
 <form id="f" class="card" autocomplete="off">
  <h2 id="ft">New employee</h2>
@@ -160,7 +161,7 @@ th{background:#eef2ef;font-size:13px}
     <button type="button" class="alt" id="camOn">Start webcam</button>
     <button type="button" id="snap" hidden>Capture</button>
     <button type="button" class="alt" id="camOff" hidden>Stop</button>
-    <button type="button" class="alt" onclick="file.click()">Upload photo</button>
+    <button type="button" class="alt" id="uploadPhotoBtn">Upload photo</button>
     <input type="file" id="file" accept="image/*" hidden>
    </div>
   </div>
@@ -179,7 +180,7 @@ th{background:#eef2ef;font-size:13px}
   <input id="srQ" placeholder="Type name, Aadhar, mobile or site…" style="max-width:360px;flex:1">
   <button type="button" class="alt" id="srClear">Clear</button>
  </div>
- <div id="srEmpty">Koi employee nahi mila.</div>
+ <div id="srEmpty">No employee found.</div>
  <div id="srResults"></div>
 </div>
 
@@ -189,7 +190,7 @@ th{background:#eef2ef;font-size:13px}
   <input id="q" placeholder="Search name / Aadhar / site" style="max-width:280px">
   <button class="alt" id="csv">Export to Excel (CSV)</button>
   <button class="alt" id="bk">Backup (JSON)</button>
-  <button class="alt" onclick="rs.click()">Restore backup</button>
+  <button class="alt" id="restoreBtn">Restore backup</button>
   <input type="file" id="rs" accept=".json" hidden>
  </div>
  <div class="tw"><table><thead><tr><th>SL</th><th>Photo</th><th>Name</th><th>Site</th><th>Designation</th><th>Joining</th><th>Mobile</th><th>Aadhar</th><th>Actions</th></tr></thead><tbody id="tb"></tbody></table></div>
@@ -199,13 +200,10 @@ th{background:#eef2ef;font-size:13px}
 
 <script>
 // ── CONFIG — update these two values after deploying Apps Script ──────────────
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw-IXrs2fnoBZvbhtpa0rqWt4d9gmLDiSWcyXlov33r_HHs_wYB5_ZN_3kqp1LEP9LyiA/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxZkOWX-gFGFSKmGk2LM37JbFSSxa0mL4ryaCZl2v5Pkm5nSZ0zrU_Srhh0UMA04ES3/exec";
 const SECRET     = "Bnpower@2026";   // must match Code.gs
-const APP_PWD_HASH = "eb78852014c9ef5246279aaacd06a2b92a1530526362e511a47d3cd8f71a28d9"; // generate below
+const APP_PWD_HASH = "eb78852014c9ef5246279aaacd06a2b92a1530526362e511a47d3cd8f71a28d9"; // SHA-256 for Bnpower@2026
 const COMPANY    = "BN POWER ENTERPRISES";
-// To generate APP_PWD_HASH: open browser console and run:
-//   crypto.subtle.digest('SHA-256', new TextEncoder().encode('yourpassword'))
-//     .then(b => console.log([...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')))
 // ─────────────────────────────────────────────────────────────────────────────
 
 const $ = id => document.getElementById(id);
@@ -228,20 +226,23 @@ function openPhotoDB() {
 }
 function savePhotoIDB(id, dataUrl) {
   return new Promise((res, rej) => {
+    if (!photoDB) { res(); return; }
     const tx = photoDB.transaction("photos", "readwrite");
     tx.objectStore("photos").put({ id, dataUrl });
     tx.oncomplete = res; tx.onerror = rej;
   });
 }
 function delPhotoIDB(id) {
+  if (!photoDB) return;
   const tx = photoDB.transaction("photos", "readwrite");
   tx.objectStore("photos").delete(id);
 }
 function loadAllPhotos() {
   return new Promise(res => {
+    if (!photoDB) { res(); return; }
     const tx = photoDB.transaction("photos", "readonly");
     const req = tx.objectStore("photos").getAll();
-    req.onsuccess = () => { req.result.forEach(r => photoCache[r.id] = r.dataUrl); res(); };
+    req.onsuccess = () => { (req.result || []).forEach(r => photoCache[r.id] = r.dataUrl); res(); };
     req.onerror = res;
   });
 }
@@ -256,14 +257,14 @@ function isLoggedIn() { return sessionStorage.getItem(SESSION_KEY) === "1"; }
 
 async function tryLogin() {
   const pwd = $("pwdInput").value;
-  if (!pwd) { $("loginErr").textContent = "Password daalna zaroori hai."; return; }
+  if (!pwd) { $("loginErr").textContent = "Password is required."; return; }
   const h = await hashStr(pwd);
   if (h === APP_PWD_HASH) {
     sessionStorage.setItem(SESSION_KEY, "1");
     $("loginScreen").style.display = "none";
     init();
   } else {
-    $("loginErr").textContent = "Galat password. Dobara try karein.";
+    $("loginErr").textContent = "Incorrect password. Please try again.";
     $("pwdInput").value = "";
   }
 }
@@ -295,12 +296,12 @@ async function flushQueue() {
   for (const item of q) {
     try {
       const res = await apiFetch(item);
-      if (!res.ok) failed.push(item);
+      if (!res || !res.ok) failed.push(item);
     } catch { failed.push(item); }
   }
   saveQueue(failed);
   updatePendingBar();
-  badge(failed.length ? "err" : "ok", failed.length ? "Sync failed" : "Synced ✓");
+  badge(failed.length ? "err" : "ok", failed.length ? "Sync pending" : "Synced ✓");
 }
 
 // ── API calls ─────────────────────────────────────────────────────────────────
@@ -323,19 +324,32 @@ try { data = JSON.parse(localStorage.getItem(KEY) || "[]"); } catch { data = [];
 
 const persist = () => {
   const slim = data.map(({ photo: _p, ...rest }) => rest);
-  try { localStorage.setItem(KEY, JSON.stringify(slim)); return true; }
-  catch { $("msg").textContent = "Storage full. Backup lo aur purane record hatao."; setMsgClass("err"); return false; }
+  try {
+    localStorage.setItem(KEY, JSON.stringify(slim));
+    return true;
+  } catch {
+    setMsg("Local storage full. Please export a backup and delete old records.", "err");
+    return false;
+  }
 };
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const fmt = d => d ? String(d).split("-").reverse().join("-") : "";
+const fmt = d => {
+  if (!d) return "";
+  const clean = String(d).split("T")[0];
+  const parts = clean.split("-");
+  return parts.length === 3 ? parts.reverse().join("-") : clean;
+};
 const calcAge = d => {
   if (!d) return "";
-  const b = new Date(d), t = new Date();
-  let a = t.getFullYear() - b.getFullYear();
-  const m = t.getMonth() - b.getMonth();
-  if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--;
+  const parts = String(d).split("T")[0].split("-").map(Number);
+  if (parts.length !== 3 || isNaN(parts[0])) return "";
+  const [y, m, day] = parts;
+  const t = new Date();
+  let a = t.getFullYear() - y;
+  const monthDiff = (t.getMonth() + 1) - m;
+  if (monthDiff < 0 || (monthDiff === 0 && t.getDate() < day)) a--;
   return a >= 0 ? a : "";
 };
 const nextSl = () => data.reduce((m, x) => Math.max(m, +x.sl || 0), 0) + 1;
@@ -375,7 +389,10 @@ $("file").onchange = e => {
   const r = new FileReader();
   r.onload = () => shrink(r.result, setPhoto);
   r.readAsDataURL(f);
+  e.target.value = "";
 };
+$("uploadPhotoBtn").onclick = () => $("file").click();
+
 function stopCam() {
   if (stream) stream.getTracks().forEach(t => t.stop());
   stream = null;
@@ -386,7 +403,7 @@ $("camOn").onclick = async () => {
     stream = await navigator.mediaDevices.getUserMedia({ video: true });
     $("vid").srcObject = stream;
     $("vid").hidden = $("snap").hidden = $("camOff").hidden = false;
-  } catch { setMsg("Camera nahi chala. Browser me permission allow karein.", "err"); }
+  } catch { setMsg("Unable to access camera. Please allow camera permissions in your browser.", "err"); }
 };
 $("camOff").onclick = stopCam;
 $("snap").onclick = () => {
@@ -398,6 +415,7 @@ $("snap").onclick = () => {
 
 // ── Form reset ────────────────────────────────────────────────────────────────
 function resetForm() {
+  document.title = "Employee Onboarding - BN POWER ENTERPRISES";
   $("f").reset(); $("age").value = ""; photo = "";
   $("preview").removeAttribute("src"); $("exs").innerHTML = ""; addEx();
   editId = null; $("ft").textContent = "New employee"; setMsg("");
@@ -407,15 +425,18 @@ $("clr").onclick = resetForm;
 
 // ── Validation ────────────────────────────────────────────────────────────────
 function validate(o) {
-  if (!/^\d{12}$/.test(o.aadhar))              return "Aadhar 12 digit ka hona chahiye.";
-  if (!/^\d{10}$/.test(o.mobile))              return "Mobile number 10 digit ka hona chahiye.";
-  if (o.emerg && !/^\d{10}$/.test(o.emerg))    return "Emergency number 10 digit ka hona chahiye.";
-  if (!/^[A-Z0-9]{11}$/.test(o.ifsc)) return "IFSC code 11 characters ka hona chahiye.";
-  if (!/^\d{9,18}$/.test(o.acc))               return "Bank account number 9-18 digit ka hona chahiye.";
-  if (o.pin && !/^\d{6}$/.test(o.pin))         return "Pincode 6 digit ka hona chahiye.";
-  if (o.uan && !/^\d{12}$/.test(o.uan))        return "UAN 12 digit ka hota hai.";
-  if (data.some(x => x.aadhar === o.aadhar && x.id !== editId)) return "Ye Aadhar pehle se saved hai.";
-  if (!photo)                                   return "Photo add karein (webcam ya upload).";
+  if (!/^\d{12}$/.test(o.aadhar))              return "Aadhar number must be 12 digits.";
+  if (!/^\d{10}$/.test(o.mobile))              return "Mobile number must be 10 digits.";
+  if (o.emerg && !/^\d{10}$/.test(o.emerg))    return "Emergency contact number must be 10 digits.";
+  if (!/^[A-Z0-9]{11}$/.test(o.ifsc))          return "IFSC code must be 11 characters.";
+  if (!/^\d{9,18}$/.test(o.acc))               return "Bank account number must be between 9 and 18 digits.";
+  if (o.pin && !/^\d{6}$/.test(o.pin))         return "Pincode must be 6 digits.";
+  if (o.uan && !/^\d{12}$/.test(o.uan))        return "UAN must be 12 digits.";
+  if (data.some(x => x.aadhar === o.aadhar && x.id !== editId)) return "This Aadhar number is already registered.";
+  
+  const existing = editId ? byId(editId) : null;
+  const hasExistingPhoto = existing && (photoCache[existing.photoId || existing.id] || existing.photo || existing.photoDriveUrl);
+  if (!photo && !hasExistingPhoto)             return "Please add a photo (via webcam or file upload).";
   return "";
 }
 
@@ -423,15 +444,22 @@ function validate(o) {
 $("f").onsubmit = async e => {
   e.preventDefault();
   const o = Object.fromEntries(new FormData($("f")).entries());
-  o.ifsc = o.ifsc.toUpperCase().trim();
+  o.ifsc = (o.ifsc || "").toUpperCase().trim();
   o.age = calcAge(o.dob);
   o.exps = getEx();
   const err = validate(o); if (err) { setMsg(err, "err"); return; }
 
   const id = editId || Date.now();
-  await savePhotoIDB(id, photo);
-  photoCache[id] = photo;
-  o.photoId = id; o.photo = photo; // photo sent to Sheets, not stored in localStorage
+  if (photo) {
+    await savePhotoIDB(id, photo);
+    photoCache[id] = photo;
+    o.photoId = id;
+    o.photo = photo;
+  } else if (editId) {
+    const existing = byId(editId);
+    o.photoId = existing.photoId || id;
+    if (existing.photoDriveUrl) o.photoDriveUrl = existing.photoDriveUrl;
+  }
 
   if (editId) {
     const i = data.findIndex(x => x.id === editId);
@@ -441,7 +469,6 @@ $("f").onsubmit = async e => {
   }
   if (!persist()) return;
 
-  // Disable save button while syncing
   $("saveBtn").disabled = true;
   setMsg("Saving…", "warn");
 
@@ -449,14 +476,13 @@ $("f").onsubmit = async e => {
   try {
     badge("busy", "Syncing…");
     const result = await apiFetch({ action, data: o });
-    if (result.ok) {
+    if (result && result.ok) {
       badge("ok", "Synced ✓");
       setMsg("Saved & synced to Google Sheets ✓", "ok");
     } else {
-      throw new Error(result.error);
+      throw new Error(result ? result.error : "Unknown sync error");
     }
   } catch {
-    // Offline or error — queue for later
     enqueue({ action, data: o });
     badge("err", "Offline — queued");
     setMsg("Saved locally. Will sync when online.", "warn");
@@ -474,10 +500,10 @@ function render() {
   const q = $("q").value.toLowerCase();
   const list = q ? data.filter(x => [x.name, x.aadhar, x.site, x.desig].join(" ").toLowerCase().includes(q)) : data;
   $("cnt").textContent = data.length;
-  $("sites").innerHTML = [...new Set(data.map(x => x.site))].map(s => `<option value="${esc(s)}">`).join("");
+  $("sites").innerHTML = [...new Set(data.map(x => x.site).filter(Boolean))].map(s => `<option value="${esc(s)}">`).join("");
   $("tb").innerHTML = list.length
     ? list.map(x => {
-        const img = photoCache[x.photoId || x.id] || "";
+        const img = photoCache[x.photoId || x.id] || x.photo || x.photoDriveUrl || "";
         return `<tr>
           <td>${esc(x.sl)}</td>
           <td>${img ? `<img src="${img}" alt="" style="width:32px;height:40px;object-fit:cover;border-radius:3px">` : "—"}</td>
@@ -489,7 +515,7 @@ function render() {
             <button class="sm dng" onclick="del(${x.id})">Delete</button>
           </td></tr>`;
       }).join("")
-    : `<tr><td colspan="9" style="color:var(--mut)">Abhi koi record nahi hai.</td></tr>`;
+    : `<tr><td colspan="9" style="color:var(--mut)">No records saved yet.</td></tr>`;
 }
 $("q").oninput = scheduleRender;
 
@@ -498,32 +524,43 @@ const byId = id => data.find(x => x.id === id);
 
 function doPrint(id) {
   const x = byId(id); if (!x) return;
-  const p = photoCache[x.photoId || x.id] || "";
+  const p = photoCache[x.photoId || x.id] || x.photo || x.photoDriveUrl || "";
   printSheet(x, p);
 }
 
 function edit(id) {
-  const x = byId(id); editId = id;
-  for (const el of $("f").elements) if (el.name && x[el.name] !== undefined) el.value = x[el.name];
+  const x = byId(id); if (!x) return;
+  editId = id;
+  for (const el of $("f").elements) {
+    if (el.name && x[el.name] !== undefined) {
+      if ((el.type === "date" || el.name === "dob" || el.name === "joining") && x[el.name]) {
+        el.value = String(x[el.name]).split("T")[0];
+      } else {
+        el.value = x[el.name];
+      }
+    }
+  }
   $("age").value = calcAge(x.dob);
-  setPhoto(photoCache[x.photoId || x.id] || "");
+  const p = photoCache[x.photoId || x.id] || x.photo || x.photoDriveUrl || "";
+  setPhoto(p);
   $("exs").innerHTML = "";
   (x.exps && x.exps.length ? x.exps : [{}]).forEach(addEx);
   $("ft").textContent = "Edit: " + x.name;
+  document.title = "Employee Onboarding - " + x.name;
   scrollTo({ top: 0, behavior: "smooth" });
 }
 
 async function del(id) {
-  const x = byId(id);
-  if (!confirm("Delete " + x.name + "?")) return;
+  const x = byId(id); if (!x) return;
+  if (!confirm("Are you sure you want to delete " + x.name + "?")) return;
   delPhotoIDB(x.photoId || x.id);
   delete photoCache[x.photoId || x.id];
   data = data.filter(y => y.id !== id);
-  persist(); render();
+  persist(); render(); searchReprint();
   try {
     badge("busy", "Syncing…");
     const result = await apiFetch({ action: "delete", id });
-    badge(result.ok ? "ok" : "err", result.ok ? "Synced ✓" : "Sync failed");
+    badge(result && result.ok ? "ok" : "err", result && result.ok ? "Synced ✓" : "Sync failed");
   } catch {
     enqueue({ action: "delete", id });
     badge("err", "Offline — queued");
@@ -534,11 +571,11 @@ async function del(id) {
 function F(l, v, fx) { return `<div class="fl" style="${fx || "flex:1"}"><span>${l}</span><div class="v">${esc(v)}</div></div>`; }
 
 function printSheet(o, photoUrl) {
-  const p = photoUrl || photoCache[o.photoId || o.id] || o.photo || "";
+  const p = photoUrl || photoCache[o.photoId || o.id] || o.photo || o.photoDriveUrl || "";
   const exRows = (o.exps && o.exps.length ? o.exps : [{}])
     .map((x, i) => `<tr><td>${x.c || x.p || x.r || x.l ? i + 1 : ""}</td><td>${esc(x.c)}</td><td>${esc(x.p)}</td><td>${esc(x.r)}</td><td>${esc(x.l)}</td></tr>`)
     .join("");
-  const paddr = o.paddr + (o.pin ? " - " + o.pin : "");
+  const paddr = (o.paddr || "") + (o.pin ? " - " + o.pin : "");
   const today = new Date().toLocaleDateString("en-GB").replace(/\//g, "-");
 
   $("sheet").innerHTML = `<div class="pg">
@@ -572,7 +609,12 @@ function printSheet(o, photoUrl) {
   <div class="r">${F("Date:", today, "flex:.45")}</div>
   <div class="r">${F("Place:", o.place, "flex:.4")}<div style="flex:.1"></div>${F("Signature:", "", "flex:.5")}</div>
 </div></div>`;
-  setTimeout(() => window.print(), 200);
+  setTimeout(() => {
+    window.print();
+    const restore = () => { document.title = origTitle; };
+    window.addEventListener("afterprint", restore, { once: true });
+    setTimeout(restore, 2000);
+  }, 200);
 }
 
 // ── Export / Backup / Restore ─────────────────────────────────────────────────
@@ -587,13 +629,19 @@ $("csv").onclick = () => {
   const h = ["sl","joining","site","desig","name","dob","age","gender","marital","blood","rel","mobile","emerg","aadhar","uan","esic","wage","taddr","paddr","pin","bank","acc","ifsc","branch","nom","nrel","ncon","edu","tech","train","exps","place"];
   const cell = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
   const val = (x, k) => k === "exps" ? (x.exps || []).map(e => [e.c, e.p, e.r, e.l].join("/")).join("; ") : x[k];
-  const txt = [h.join(",")].concat(data.map(x => h.map(k => /^(aadhar|acc|uan|esic|mobile|emerg)$/.test(k) ? `="${x[k] || ""}"` : cell(val(x, k))).join(","))).join("\r\n");
+  const txt = [h.join(",")].concat(data.map(x => h.map(k => {
+    const v = val(x, k);
+    if (/^(aadhar|acc|uan|esic|mobile|emerg)$/.test(k)) {
+      return `="` + String(v ?? "").replace(/"/g, '""') + `"`;
+    }
+    return cell(v);
+  }).join(","))).join("\r\n");
   download("employees_" + new Date().toISOString().slice(0, 10) + ".csv", "\ufeff" + txt, "text/csv");
 };
 
 $("bk").onclick = () => {
-  const full = data.map(x => ({ ...x, photo: photoCache[x.photoId || x.id] || "" }));
-  download("employees_backup_" + new Date().toISOString().slice(0, 10) + ".json", JSON.stringify(full), "application/json");
+  const full = data.map(x => ({ ...x, photo: photoCache[x.photoId || x.id] || x.photo || x.photoDriveUrl || "" }));
+  download("employees_backup_" + new Date().toISOString().slice(0, 10) + ".json", JSON.stringify(full, null, 2), "application/json");
 };
 
 $("rs").onchange = e => {
@@ -606,18 +654,21 @@ $("rs").onchange = e => {
       const ids = new Set(data.map(x => x.aadhar));
       for (const x of d) {
         if (!ids.has(x.aadhar)) {
-          const id = x.id || Date.now();
+          const id = x.id || (Date.now() + Math.floor(Math.random() * 1000));
           if (x.photo) { await savePhotoIDB(id, x.photo); photoCache[id] = x.photo; }
           x.photoId = id; delete x.photo; data.push(x);
         }
       }
       persist(); render();
-    } catch { alert("Backup file sahi nahi hai."); }
+      setMsg("Backup restored successfully.", "ok");
+    } catch { alert("Invalid backup file. Please select a valid JSON backup."); }
   };
   r.readAsText(f);
+  e.target.value = "";
 };
+$("restoreBtn").onclick = () => $("rs").click();
 
-// ── Search & Reprint ────────────────────────────────────────────────────────────────────────────
+// ── Search & Reprint ────────────────────────────────────────────────────────────
 let srTimer = null;
 $('srQ').addEventListener('input', () => {
   clearTimeout(srTimer);
@@ -641,7 +692,7 @@ function searchReprint() {
   empty.style.display = 'none';
 
   matches.forEach(x => {
-    const img = photoCache[x.photoId || x.id] || '';
+    const img = photoCache[x.photoId || x.id] || x.photo || x.photoDriveUrl || '';
     const card = document.createElement('div');
     card.className = 'srCard';
     card.innerHTML = `
@@ -667,7 +718,7 @@ function searchReprint() {
   });
 }
 
-// ── Online/offline listeners ────────────────────────────────────────────────────────────────────────────
+// ── Online/offline listeners ────────────────────────────────────────────────────────────
 window.addEventListener("online",  () => flushQueue());
 window.addEventListener("offline", () => badge("err", "Offline"));
 
@@ -681,28 +732,34 @@ async function init() {
   try {
     badge("busy", "Loading…");
     const result = await apiGet();
-    if (result.ok && result.data.length) {
-      // Merge Sheet data into local — Sheet is source of truth
-      const sheetIds = new Set(result.data.map(x => String(x.ID)));
-      // Add any Sheet records not in local cache
+    if (result && result.ok && Array.isArray(result.data)) {
       result.data.forEach(row => {
         const id = Number(row.ID);
-        if (!data.find(x => x.id === id)) {
-          data.push({
-            id, sl: row.SL, joining: row["Joining Date"], site: row.Site,
-            desig: row.Designation, name: row.Name, dob: row.DOB, age: row.Age,
-            gender: row.Gender, marital: row["Marital Status"], blood: row["Blood Group"],
-            rel: row["Relation Name"], mobile: row.Mobile, emerg: row["Emergency Contact"],
-            aadhar: row.Aadhar, uan: row.UAN, esic: row.ESIC, wage: row.Wages,
-            taddr: row["Temp Address"], paddr: row["Perm Address"], pin: row.Pincode,
-            bank: row["Bank Name"], acc: row["Account No"], ifsc: row.IFSC,
-            branch: row.Branch, nom: row.Nominee, nrel: row["Nominee Relation"],
-            ncon: row["Nominee Contact"], edu: row.Education, tech: row["Technical Qual"],
-            train: row.Training,
-            exps: (() => { try { return JSON.parse(row.Experience || "[]"); } catch { return []; } })(),
-            place: row.Place, added: row["Added On"],
-            photoId: id
-          });
+        if (!id) return;
+        const record = {
+          id, sl: row.SL,
+          joining: row["Joining Date"] ? String(row["Joining Date"]).split("T")[0] : "",
+          site: row.Site, desig: row.Designation, name: row.Name,
+          dob: row.DOB ? String(row.DOB).split("T")[0] : "",
+          age: row.Age, gender: row.Gender, marital: row["Marital Status"],
+          blood: row["Blood Group"], rel: row["Relation Name"],
+          mobile: row.Mobile, emerg: row["Emergency Contact"],
+          aadhar: row.Aadhar, uan: row.UAN, esic: row.ESIC, wage: row.Wages,
+          taddr: row["Temp Address"], paddr: row["Perm Address"], pin: row.Pincode,
+          bank: row["Bank Name"], acc: row["Account No"], ifsc: row.IFSC,
+          branch: row.Branch, nom: row.Nominee, nrel: row["Nominee Relation"],
+          ncon: row["Nominee Contact"], edu: row.Education, tech: row["Technical Qual"],
+          train: row.Training,
+          exps: (() => { try { return JSON.parse(row.Experience || "[]"); } catch { return []; } })(),
+          place: row.Place, added: row["Added On"],
+          photoId: id,
+          photoDriveUrl: row["Photo (Drive Link)"] || ""
+        };
+        const existingIdx = data.findIndex(x => x.id === id);
+        if (existingIdx >= 0) {
+          data[existingIdx] = { ...data[existingIdx], ...record };
+        } else {
+          data.push(record);
         }
       });
       persist(); render();
@@ -714,11 +771,9 @@ async function init() {
     badge("err", "Offline");
   }
 
-  // Flush any pending queue
   flushQueue();
 }
 
-// Show login screen on load; init() is called only after successful login
 if (isLoggedIn()) {
   $("loginScreen").style.display = "none";
   init();
