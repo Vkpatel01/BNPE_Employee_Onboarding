@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Employee Onboarding</title>
+<style>
+:root{--bg:#f3f5f2;--card:#fff;--ink:#1d2a24;--mut:#5f6f67;--line:#d5ddd8;--pri:#1f6f54;--dng:#b3342b;--warn:#b36800}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.4 "Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:var(--pri);color:#fff;padding:14px 20px;font-size:20px;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.hright{display:flex;align-items:center;gap:10px}
+#syncBadge{font-size:12px;padding:3px 9px;border-radius:20px;background:rgba(255,255,255,.2);white-space:nowrap}
+#syncBadge.ok{background:#155c3e}
+#syncBadge.err{background:var(--dng)}
+#syncBadge.busy{background:var(--warn)}
+main{max-width:1100px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:16px}
+h2{margin:0 0 12px;font-size:17px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+label{display:block;font-size:13px;color:var(--mut);margin-bottom:3px}
+input,select,textarea{width:100%;padding:8px;border:1px solid var(--line);border-radius:5px;font:inherit}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--pri);outline-offset:1px}
+input[readonly]{background:#eef2ef}
+.full{grid-column:1/-1}
+.photo{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}
+#preview{width:120px;height:150px;object-fit:cover;border:1px dashed var(--mut);border-radius:6px;background:#eef2ef}
+video{width:260px;max-width:100%;border-radius:6px;background:#000}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+button{padding:9px 14px;border:0;border-radius:5px;background:var(--pri);color:#fff;font:inherit;cursor:pointer}
+button.alt{background:#fff;color:var(--pri);border:1px solid var(--pri)}
+button.dng{background:var(--dng)}
+button.sm{padding:5px 9px;font-size:13px}
+button:disabled{opacity:.5;cursor:not-allowed}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:760px}
+th,td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;white-space:nowrap}
+th{background:#eef2ef;font-size:13px}
+.ex{display:grid;grid-template-columns:repeat(4,1fr) 40px;gap:8px;margin-bottom:8px}
+#msg{margin-top:8px;min-height:18px;font-size:13px}
+#msg.err{color:var(--dng)}
+#msg.ok{color:var(--pri)}
+#msg.warn{color:var(--warn)}
+#sheet{display:none}
+
+/* ── Login overlay ── */
+#loginScreen{position:fixed;inset:0;background:var(--pri);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:14px}
+#loginScreen h1{color:#fff;margin:0;font-size:24px}
+#loginScreen p{color:#b2d8cc;margin:0;font-size:13px;text-align:center;max-width:280px}
+#loginScreen input{width:240px;padding:10px;border-radius:6px;border:0;font-size:15px}
+#loginScreen button{width:240px}
+#loginErr{color:#ffd0cc;font-size:13px;min-height:18px}
+
+/* ── Unsync'd indicator ── */
+#pendingBar{background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:8px 14px;margin-bottom:12px;font-size:13px;display:none}
+
+/* ── Search & Reprint card ── */
+#srResults{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px}
+.srCard{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--line);border-radius:7px;padding:12px;background:#f9fbf9;min-width:260px;flex:1;max-width:420px}
+.srCard img{width:60px;height:75px;object-fit:cover;border-radius:4px;border:1px solid var(--line);flex-shrink:0}
+.srCard .srInfo{flex:1;min-width:0}
+.srCard .srName{font-weight:600;font-size:15px;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.srCard .srMeta{font-size:12px;color:var(--mut);line-height:1.7}
+.srCard .srMeta span{display:block}
+.srCard .srActions{display:flex;flex-direction:column;gap:6px;flex-shrink:0}
+#srEmpty{color:var(--mut);font-size:13px;margin-top:8px;display:none}
+
+@media print{
+ body{background:#fff}header,main{display:none}
+ #sheet{display:block;font-family:"Times New Roman",Times,serif;font-size:14px;color:#000}
+ #sheet .pg{border:2px solid #000;padding:6mm 7mm;height:281mm;position:relative}
+ #sheet h1{text-align:center;font-size:20px;margin:0 0 8px}
+ #sheet .box{border:1.5px solid #000;padding:5px 8px;margin-bottom:10px}
+ #sheet .hd{display:flex;gap:10px;font-size:12px}
+ #sheet h3{margin:0 0 6px;font-size:14px;text-decoration:underline}
+ #sheet .r{display:flex;gap:14px;margin:7px 0}
+ #sheet .fl{display:flex;gap:5px;align-items:baseline;min-width:0}
+ #sheet .fl>span{white-space:nowrap}
+ #sheet .v{flex:1;border-bottom:1px solid #000;min-height:17px;padding:0 3px;font-family:Arial,sans-serif;font-size:12.5px;font-weight:600}
+ #sheet .pers{display:flex;gap:14px}
+ #sheet .pl{flex:1}
+ #sheet .ph{width:120px;height:150px;border:1.5px solid #000;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+ #sheet .ph img{width:100%;height:100%;object-fit:cover}
+ #sheet table{min-width:0;width:100%;border:1px solid #000;margin:4px 0 10px}
+ #sheet th,#sheet td{border:1px solid #000;padding:5px;font-size:12px;font-weight:400;background:none;text-align:left;white-space:normal;height:26px}
+ .ft{position:absolute;left:7mm;right:7mm;bottom:6mm}
+ @page{size:A4;margin:6mm}
+}
+</style></head><body>
+
+<!-- ── Login screen ── -->
+<div id="loginScreen">
+  <h1>Employee Onboarding</h1>
+  <p>Enter the access password to continue</p>
+  <input type="password" id="pwdInput" placeholder="Password" autocomplete="current-password">
+  <button id="loginBtn">Login</button>
+  <div id="loginErr"></div>
+</div>
+
+<header>
+  <span>Employee Onboarding — <span id="coName"></span></span>
+  <div class="hright">
+    <span id="syncBadge">⬤ Connecting…</span>
+    <button class="alt" id="lockBtn" style="font-size:13px;padding:5px 10px;color:#fff;border-color:#fff;background:transparent">🔒 Lock</button>
+  </div>
+</header>
+
+<main>
+<div id="pendingBar">⚠️ <strong>Unsaved records pending sync.</strong> Check your internet connection. Data is safe locally — will sync when online.</div>
+
+<form id="f" class="card" autocomplete="off">
+ <h2 id="ft">New employee</h2>
+ <div class="grid">
+  <div><label>SL. No.</label><input name="sl" id="sl" type="number" min="1"></div>
+  <div><label>Joining date *</label><input type="date" name="joining" required></div>
+  <div><label>Site name *</label><input name="site" required list="sites"><datalist id="sites"></datalist></div>
+  <div><label>Designation *</label><input name="desig" required list="dl"><datalist id="dl"><option>Helper</option><option>Skilled worker</option><option>Electrician</option><option>Fitter</option><option>Welder</option><option>Supervisor</option><option>Operator</option></datalist></div>
+  <div><label>Employee's name *</label><input name="name" required></div>
+  <div><label>Date of birth *</label><input type="date" name="dob" id="dob" required></div>
+  <div><label>Age (auto)</label><input name="age" id="age" readonly></div>
+  <div><label>Gender</label><select name="gender"><option value="">-</option><option>Male</option><option>Female</option><option>Other</option></select></div>
+  <div><label>Marital status</label><select name="marital"><option value="">-</option><option>Single</option><option>Married</option><option>Widowed</option><option>Divorced</option></select></div>
+  <div><label>Blood group</label><select name="blood"><option value="">-</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>O+</option><option>O-</option><option>AB+</option><option>AB-</option></select></div>
+  <div><label>Father / Mother / Husband name *</label><input name="rel" required></div>
+  <div><label>Mobile number *</label><input name="mobile" inputmode="numeric" maxlength="10" required></div>
+  <div><label>Emergency contact number</label><input name="emerg" inputmode="numeric" maxlength="10"></div>
+  <div><label>Aadhar number *</label><input name="aadhar" inputmode="numeric" maxlength="12" required></div>
+  <div><label>UAN</label><input name="uan" inputmode="numeric" maxlength="12"></div>
+  <div><label>ESIC</label><input name="esic" inputmode="numeric" maxlength="17"></div>
+  <div><label>Monthly wages (₹) <small>(print me nahi aayega)</small></label><input name="wage" type="number" min="0"></div>
+  <div class="full"><label>Temporary address</label><textarea name="taddr" rows="2"></textarea></div>
+  <div class="full"><label>Permanent address *</label><textarea name="paddr" rows="2" required></textarea></div>
+  <div><label>Pincode</label><input name="pin" inputmode="numeric" maxlength="6"></div>
+ </div>
+ <h2 style="margin-top:18px">Bank details</h2>
+ <div class="grid">
+  <div><label>Bank name *</label><input name="bank" required></div>
+  <div><label>Account number *</label><input name="acc" inputmode="numeric" required></div>
+  <div><label>IFSC code *</label><input name="ifsc" maxlength="11" style="text-transform:uppercase" required></div>
+  <div><label>Branch</label><input name="branch"></div>
+  <div><label>Nominee name</label><input name="nom"></div>
+  <div><label>Nominee's relation</label><input name="nrel"></div>
+  <div><label>Nominee's contact details</label><input name="ncon"></div>
+ </div>
+ <h2 style="margin-top:18px">Education &amp; experience</h2>
+ <div class="grid">
+  <div><label>Educational qualifications</label><input name="edu"></div>
+  <div><label>Technical qualifications</label><input name="tech"></div>
+  <div><label>Training / other certifications</label><input name="train"></div>
+ </div>
+ <label style="margin-top:12px">Experience</label>
+ <div id="exs"></div>
+ <button type="button" class="alt sm" id="addEx">+ Add experience</button>
+ <div class="grid" style="margin-top:14px"><div><label>Place</label><input name="place"></div></div>
+ <h2 style="margin-top:18px">Photo</h2>
+ <div class="photo">
+  <img id="preview" alt="Photo preview">
+  <div>
+   <video id="vid" autoplay playsinline muted hidden></video>
+   <div class="row">
+    <button type="button" class="alt" id="camOn">Start webcam</button>
+    <button type="button" id="snap" hidden>Capture</button>
+    <button type="button" class="alt" id="camOff" hidden>Stop</button>
+    <button type="button" class="alt" onclick="file.click()">Upload photo</button>
+    <input type="file" id="file" accept="image/*" hidden>
+   </div>
+  </div>
+ </div>
+ <div id="msg"></div>
+ <div class="row">
+  <button type="submit" id="saveBtn">Save &amp; print PDF</button>
+  <button type="button" class="alt" id="clr">Clear form</button>
+ </div>
+</form>
+
+<!-- ── Search & Reprint ── -->
+<div class="card">
+ <h2>🔍 Search &amp; Reprint existing employee</h2>
+ <div style="display:flex;gap:8px;flex-wrap:wrap">
+  <input id="srQ" placeholder="Type name, Aadhar, mobile or site…" style="max-width:360px;flex:1">
+  <button type="button" class="alt" id="srClear">Clear</button>
+ </div>
+ <div id="srEmpty">Koi employee nahi mila.</div>
+ <div id="srResults"></div>
+</div>
+
+<div class="card">
+ <h2>Saved employees (<span id="cnt">0</span>)</h2>
+ <div class="row" style="margin:0 0 10px">
+  <input id="q" placeholder="Search name / Aadhar / site" style="max-width:280px">
+  <button class="alt" id="csv">Export to Excel (CSV)</button>
+  <button class="alt" id="bk">Backup (JSON)</button>
+  <button class="alt" onclick="rs.click()">Restore backup</button>
+  <input type="file" id="rs" accept=".json" hidden>
+ </div>
+ <div class="tw"><table><thead><tr><th>SL</th><th>Photo</th><th>Name</th><th>Site</th><th>Designation</th><th>Joining</th><th>Mobile</th><th>Aadhar</th><th>Actions</th></tr></thead><tbody id="tb"></tbody></table></div>
+</div>
+</main>
+<div id="sheet"></div>
+
+<script>
+// ── CONFIG — update these two values after deploying Apps Script ──────────────
+const SCRIPT_URL = "YOUR_APPS_SCRIPT_WEB_APP_URL_HERE";
+const SECRET     = "CHANGE_THIS_SECRET_KEY";   // must match Code.gs
+const APP_PWD_HASH = "PASTE_SHA256_OF_YOUR_PASSWORD_HERE"; // generate below
+const COMPANY    = "BN POWER ENTERPRISES";
+// To generate APP_PWD_HASH: open browser console and run:
+//   crypto.subtle.digest('SHA-256', new TextEncoder().encode('yourpassword'))
+//     .then(b => console.log([...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')))
+// ─────────────────────────────────────────────────────────────────────────────
+
+const $ = id => document.getElementById(id);
+const KEY       = "emp_onboarding_v2";
+const QUEUE_KEY = "emp_sync_queue";
+const PHOTO_DB  = "emp_photos_v2";
+const SESSION_KEY = "emp_session";
+
+// ── IndexedDB for photos ──────────────────────────────────────────────────────
+let photoDB = null;
+const photoCache = {};
+
+function openPhotoDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(PHOTO_DB, 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore("photos", { keyPath: "id" });
+    req.onsuccess = e => { photoDB = e.target.result; res(); };
+    req.onerror = rej;
+  });
+}
+function savePhotoIDB(id, dataUrl) {
+  return new Promise((res, rej) => {
+    const tx = photoDB.transaction("photos", "readwrite");
+    tx.objectStore("photos").put({ id, dataUrl });
+    tx.oncomplete = res; tx.onerror = rej;
+  });
+}
+function delPhotoIDB(id) {
+  const tx = photoDB.transaction("photos", "readwrite");
+  tx.objectStore("photos").delete(id);
+}
+function loadAllPhotos() {
+  return new Promise(res => {
+    const tx = photoDB.transaction("photos", "readonly");
+    const req = tx.objectStore("photos").getAll();
+    req.onsuccess = () => { req.result.forEach(r => photoCache[r.id] = r.dataUrl); res(); };
+    req.onerror = res;
+  });
+}
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+async function hashStr(s) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+function isLoggedIn() { return sessionStorage.getItem(SESSION_KEY) === "1"; }
+
+async function tryLogin() {
+  const pwd = $("pwdInput").value;
+  if (!pwd) { $("loginErr").textContent = "Password daalna zaroori hai."; return; }
+  const h = await hashStr(pwd);
+  if (h === APP_PWD_HASH) {
+    sessionStorage.setItem(SESSION_KEY, "1");
+    $("loginScreen").style.display = "none";
+    init();
+  } else {
+    $("loginErr").textContent = "Galat password. Dobara try karein.";
+    $("pwdInput").value = "";
+  }
+}
+$("loginBtn").onclick = tryLogin;
+$("pwdInput").addEventListener("keydown", e => { if (e.key === "Enter") tryLogin(); });
+$("lockBtn").onclick = () => { sessionStorage.removeItem(SESSION_KEY); location.reload(); };
+
+// ── Sync badge ────────────────────────────────────────────────────────────────
+function badge(state, text) {
+  const b = $("syncBadge");
+  b.className = state; b.textContent = "⬤ " + text;
+}
+
+// ── Offline queue ─────────────────────────────────────────────────────────────
+function getQueue() { try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || "[]"); } catch { return []; } }
+function saveQueue(q) { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); }
+function enqueue(item) { const q = getQueue(); q.push(item); saveQueue(q); updatePendingBar(); }
+
+function updatePendingBar() {
+  const q = getQueue();
+  $("pendingBar").style.display = q.length ? "block" : "none";
+}
+
+async function flushQueue() {
+  const q = getQueue();
+  if (!q.length) return;
+  badge("busy", "Syncing…");
+  const failed = [];
+  for (const item of q) {
+    try {
+      const res = await apiFetch(item);
+      if (!res.ok) failed.push(item);
+    } catch { failed.push(item); }
+  }
+  saveQueue(failed);
+  updatePendingBar();
+  badge(failed.length ? "err" : "ok", failed.length ? "Sync failed" : "Synced ✓");
+}
+
+// ── API calls ─────────────────────────────────────────────────────────────────
+async function apiFetch(payload) {
+  const res = await fetch(SCRIPT_URL, {
+    method: "POST",
+    body: JSON.stringify({ secret: SECRET, ...payload })
+  });
+  return res.json();
+}
+
+async function apiGet() {
+  const res = await fetch(`${SCRIPT_URL}?secret=${encodeURIComponent(SECRET)}`);
+  return res.json();
+}
+
+// ── Local data ────────────────────────────────────────────────────────────────
+let data = [], editId = null, photo = "", stream = null;
+try { data = JSON.parse(localStorage.getItem(KEY) || "[]"); } catch { data = []; }
+
+const persist = () => {
+  const slim = data.map(({ photo: _p, ...rest }) => rest);
+  try { localStorage.setItem(KEY, JSON.stringify(slim)); return true; }
+  catch { $("msg").textContent = "Storage full. Backup lo aur purane record hatao."; setMsgClass("err"); return false; }
+};
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmt = d => d ? String(d).split("-").reverse().join("-") : "";
+const calcAge = d => {
+  if (!d) return "";
+  const b = new Date(d), t = new Date();
+  let a = t.getFullYear() - b.getFullYear();
+  const m = t.getMonth() - b.getMonth();
+  if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--;
+  return a >= 0 ? a : "";
+};
+const nextSl = () => data.reduce((m, x) => Math.max(m, +x.sl || 0), 0) + 1;
+function setMsg(txt, cls) { $("msg").textContent = txt; $("msg").className = cls || ""; }
+
+$("dob").addEventListener("input", () => $("age").value = calcAge($("dob").value));
+$("coName").textContent = COMPANY;
+
+// ── Experience rows ───────────────────────────────────────────────────────────
+function addEx(v = {}) {
+  const d = document.createElement("div"); d.className = "ex";
+  d.innerHTML = `<input placeholder="Company's name" value="${esc(v.c)}"><input placeholder="Project" value="${esc(v.p)}"><input placeholder="Role" value="${esc(v.r)}"><input placeholder="Location" value="${esc(v.l)}"><button type="button" class="dng sm" title="Remove">✕</button>`;
+  d.querySelector("button").onclick = () => d.remove();
+  $("exs").appendChild(d);
+}
+$("addEx").onclick = () => addEx();
+const getEx = () => [...document.querySelectorAll("#exs .ex")].map(d => {
+  const i = d.querySelectorAll("input");
+  return { c: i[0].value.trim(), p: i[1].value.trim(), r: i[2].value.trim(), l: i[3].value.trim() };
+}).filter(x => x.c || x.p || x.r || x.l);
+
+// ── Photo helpers ─────────────────────────────────────────────────────────────
+function setPhoto(u) { photo = u; $("preview").src = u; }
+function shrink(src, cb) {
+  const i = new Image();
+  i.onload = () => {
+    const w = 300, h = Math.round(w * i.height / i.width);
+    const c = document.createElement("canvas");
+    c.width = w; c.height = h;
+    c.getContext("2d").drawImage(i, 0, 0, w, h);
+    cb(c.toDataURL("image/jpeg", 0.8));
+  };
+  i.src = src;
+}
+$("file").onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => shrink(r.result, setPhoto);
+  r.readAsDataURL(f);
+};
+function stopCam() {
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  stream = null;
+  $("vid").hidden = $("snap").hidden = $("camOff").hidden = true;
+}
+$("camOn").onclick = async () => {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    $("vid").srcObject = stream;
+    $("vid").hidden = $("snap").hidden = $("camOff").hidden = false;
+  } catch { setMsg("Camera nahi chala. Browser me permission allow karein.", "err"); }
+};
+$("camOff").onclick = stopCam;
+$("snap").onclick = () => {
+  const v = $("vid"), c = document.createElement("canvas");
+  c.width = v.videoWidth; c.height = v.videoHeight;
+  c.getContext("2d").drawImage(v, 0, 0);
+  shrink(c.toDataURL("image/jpeg"), setPhoto); stopCam();
+};
+
+// ── Form reset ────────────────────────────────────────────────────────────────
+function resetForm() {
+  $("f").reset(); $("age").value = ""; photo = "";
+  $("preview").removeAttribute("src"); $("exs").innerHTML = ""; addEx();
+  editId = null; $("ft").textContent = "New employee"; setMsg("");
+  $("sl").value = nextSl(); stopCam();
+}
+$("clr").onclick = resetForm;
+
+// ── Validation ────────────────────────────────────────────────────────────────
+function validate(o) {
+  if (!/^\d{12}$/.test(o.aadhar))              return "Aadhar 12 digit ka hona chahiye.";
+  if (!/^\d{10}$/.test(o.mobile))              return "Mobile number 10 digit ka hona chahiye.";
+  if (o.emerg && !/^\d{10}$/.test(o.emerg))    return "Emergency number 10 digit ka hona chahiye.";
+  if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(o.ifsc)) return "IFSC code galat hai (e.g. SBIN0001234).";
+  if (!/^\d{9,18}$/.test(o.acc))               return "Bank account number 9-18 digit ka hona chahiye.";
+  if (o.pin && !/^\d{6}$/.test(o.pin))         return "Pincode 6 digit ka hona chahiye.";
+  if (o.uan && !/^\d{12}$/.test(o.uan))        return "UAN 12 digit ka hota hai.";
+  if (data.some(x => x.aadhar === o.aadhar && x.id !== editId)) return "Ye Aadhar pehle se saved hai.";
+  if (!photo)                                   return "Photo add karein (webcam ya upload).";
+  return "";
+}
+
+// ── Submit ────────────────────────────────────────────────────────────────────
+$("f").onsubmit = async e => {
+  e.preventDefault();
+  const o = Object.fromEntries(new FormData($("f")).entries());
+  o.ifsc = o.ifsc.toUpperCase().trim();
+  o.age = calcAge(o.dob);
+  o.exps = getEx();
+  const err = validate(o); if (err) { setMsg(err, "err"); return; }
+
+  const id = editId || Date.now();
+  await savePhotoIDB(id, photo);
+  photoCache[id] = photo;
+  o.photoId = id; o.photo = photo; // photo sent to Sheets, not stored in localStorage
+
+  if (editId) {
+    const i = data.findIndex(x => x.id === editId);
+    o.id = editId; o.added = data[i].added; data[i] = { ...o };
+  } else {
+    o.id = id; o.added = new Date().toISOString(); data.push({ ...o });
+  }
+  if (!persist()) return;
+
+  // Disable save button while syncing
+  $("saveBtn").disabled = true;
+  setMsg("Saving…", "warn");
+
+  const action = editId ? "update" : "save";
+  try {
+    badge("busy", "Syncing…");
+    const result = await apiFetch({ action, data: o });
+    if (result.ok) {
+      badge("ok", "Synced ✓");
+      setMsg("Saved & synced to Google Sheets ✓", "ok");
+    } else {
+      throw new Error(result.error);
+    }
+  } catch {
+    // Offline or error — queue for later
+    enqueue({ action, data: o });
+    badge("err", "Offline — queued");
+    setMsg("Saved locally. Will sync when online.", "warn");
+  }
+
+  $("saveBtn").disabled = false;
+  render(); printSheet(o); resetForm();
+};
+
+// ── Render ────────────────────────────────────────────────────────────────────
+let renderTimer = null;
+function scheduleRender() { clearTimeout(renderTimer); renderTimer = setTimeout(render, 150); }
+
+function render() {
+  const q = $("q").value.toLowerCase();
+  const list = q ? data.filter(x => [x.name, x.aadhar, x.site, x.desig].join(" ").toLowerCase().includes(q)) : data;
+  $("cnt").textContent = data.length;
+  $("sites").innerHTML = [...new Set(data.map(x => x.site))].map(s => `<option value="${esc(s)}">`).join("");
+  $("tb").innerHTML = list.length
+    ? list.map(x => {
+        const img = photoCache[x.photoId || x.id] || "";
+        return `<tr>
+          <td>${esc(x.sl)}</td>
+          <td>${img ? `<img src="${img}" alt="" style="width:32px;height:40px;object-fit:cover;border-radius:3px">` : "—"}</td>
+          <td>${esc(x.name)}</td><td>${esc(x.site)}</td><td>${esc(x.desig)}</td>
+          <td>${fmt(x.joining)}</td><td>${esc(x.mobile)}</td><td>${esc(x.aadhar)}</td>
+          <td>
+            <button class="sm" onclick="doPrint(${x.id})">PDF</button>
+            <button class="sm alt" onclick="edit(${x.id})">Edit</button>
+            <button class="sm dng" onclick="del(${x.id})">Delete</button>
+          </td></tr>`;
+      }).join("")
+    : `<tr><td colspan="9" style="color:var(--mut)">Abhi koi record nahi hai.</td></tr>`;
+}
+$("q").oninput = scheduleRender;
+
+// ── CRUD ──────────────────────────────────────────────────────────────────────
+const byId = id => data.find(x => x.id === id);
+
+function doPrint(id) {
+  const x = byId(id); if (!x) return;
+  const p = photoCache[x.photoId || x.id] || "";
+  printSheet(x, p);
+}
+
+function edit(id) {
+  const x = byId(id); editId = id;
+  for (const el of $("f").elements) if (el.name && x[el.name] !== undefined) el.value = x[el.name];
+  $("age").value = calcAge(x.dob);
+  setPhoto(photoCache[x.photoId || x.id] || "");
+  $("exs").innerHTML = "";
+  (x.exps && x.exps.length ? x.exps : [{}]).forEach(addEx);
+  $("ft").textContent = "Edit: " + x.name;
+  scrollTo({ top: 0, behavior: "smooth" });
+}
+
+async function del(id) {
+  const x = byId(id);
+  if (!confirm("Delete " + x.name + "?")) return;
+  delPhotoIDB(x.photoId || x.id);
+  delete photoCache[x.photoId || x.id];
+  data = data.filter(y => y.id !== id);
+  persist(); render();
+  try {
+    badge("busy", "Syncing…");
+    const result = await apiFetch({ action: "delete", id });
+    badge(result.ok ? "ok" : "err", result.ok ? "Synced ✓" : "Sync failed");
+  } catch {
+    enqueue({ action: "delete", id });
+    badge("err", "Offline — queued");
+  }
+}
+
+// ── Print sheet ───────────────────────────────────────────────────────────────
+function F(l, v, fx) { return `<div class="fl" style="${fx || "flex:1"}"><span>${l}</span><div class="v">${esc(v)}</div></div>`; }
+
+function printSheet(o, photoUrl) {
+  const p = photoUrl || photoCache[o.photoId || o.id] || o.photo || "";
+  const exRows = (o.exps && o.exps.length ? o.exps : [{}])
+    .map((x, i) => `<tr><td>${x.c || x.p || x.r || x.l ? i + 1 : ""}</td><td>${esc(x.c)}</td><td>${esc(x.p)}</td><td>${esc(x.r)}</td><td>${esc(x.l)}</td></tr>`)
+    .join("");
+  const paddr = o.paddr + (o.pin ? " - " + o.pin : "");
+  const today = new Date().toLocaleDateString("en-GB").replace(/\//g, "-");
+
+  $("sheet").innerHTML = `<div class="pg">
+<h1>${esc(COMPANY)}</h1>
+<div class="box"><div class="hd">${F("SL. NO.:", o.sl, "flex:.6")}${F("Joining Date:", fmt(o.joining), "flex:1")}${F("Site Name:", o.site, "flex:1.6")}${F("Designation:", o.desig, "flex:1.2")}</div></div>
+<h3>Employee Personal Information</h3>
+<div class="pers"><div class="pl">
+  <div class="r">${F("Employee's Name:", o.name)}</div>
+  <div class="r">${F("Date of Birth:", fmt(o.dob), "flex:1.4")}${F("Age:", o.age, "flex:.6")}${F("Gender:", o.gender, "flex:1")}</div>
+  <div class="r">${F("Marital Status:", o.marital)}${F("Blood Group:", o.blood)}</div>
+  <div class="r">${F("Father/Mother/Husband Name:", o.rel)}</div>
+  <div class="r">${F("Mobile Number:", o.mobile)}</div>
+  <div class="r">${F("Emergency Contact Number:", o.emerg)}</div>
+</div><div class="ph">${p ? `<img src="${p}" alt="">` : "Photo"}</div></div>
+<div class="r">${F("Aadhar Number:", o.aadhar)}</div>
+<div class="r">${F("UAN:", o.uan)}${F("ESIC:", o.esic)}</div>
+<div class="r">${F("Temporary Address:", o.taddr)}</div>
+<div class="r">${F("Permanent Address:", paddr)}</div>
+<div class="box" style="margin-top:12px"><h3 style="text-decoration:none">Bank Details</h3>
+  <div class="r">${F("Bank Name:", o.bank)}${F("Account Number:", o.acc)}</div>
+  <div class="r">${F("IFSC Code:", o.ifsc)}${F("Branch:", o.branch)}</div>
+  <div class="r">${F("Nominee Name:", o.nom)}${F("Nominee's Relation:", o.nrel)}</div>
+  <div class="r">${F("Nominee's Contact Details:", o.ncon)}</div>
+</div>
+<div class="box" style="margin-top:16px"><h3 style="text-decoration:none">Educations &amp; Experience Details:</h3>
+  <div class="r">${F("Educational Qualifications:", o.edu, "flex:.7")}</div>
+  <div class="r">${F("Technical Qualifications:", o.tech, "flex:.7")}</div>
+  <div class="r">${F("Training /Other Certifications:", o.train, "flex:.7")}</div>
+  <h3>Experience:</h3>
+  <table><thead><tr><th style="width:9%">SL.NO</th><th>COMPANY'S NAME</th><th>PROJECT</th><th>ROLE</th><th>LOCATION</th></tr></thead><tbody>${exRows}</tbody></table>
+  <div class="r">${F("Date:", today, "flex:.45")}</div>
+  <div class="r">${F("Place:", o.place, "flex:.4")}<div style="flex:.1"></div>${F("Signature:", "", "flex:.5")}</div>
+</div></div>`;
+  setTimeout(() => window.print(), 200);
+}
+
+// ── Export / Backup / Restore ─────────────────────────────────────────────────
+function download(name, text, type) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+$("csv").onclick = () => {
+  const h = ["sl","joining","site","desig","name","dob","age","gender","marital","blood","rel","mobile","emerg","aadhar","uan","esic","wage","taddr","paddr","pin","bank","acc","ifsc","branch","nom","nrel","ncon","edu","tech","train","exps","place"];
+  const cell = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const val = (x, k) => k === "exps" ? (x.exps || []).map(e => [e.c, e.p, e.r, e.l].join("/")).join("; ") : x[k];
+  const txt = [h.join(",")].concat(data.map(x => h.map(k => /^(aadhar|acc|uan|esic|mobile|emerg)$/.test(k) ? `="${x[k] || ""}"` : cell(val(x, k))).join(","))).join("\r\n");
+  download("employees_" + new Date().toISOString().slice(0, 10) + ".csv", "\ufeff" + txt, "text/csv");
+};
+
+$("bk").onclick = () => {
+  const full = data.map(x => ({ ...x, photo: photoCache[x.photoId || x.id] || "" }));
+  download("employees_backup_" + new Date().toISOString().slice(0, 10) + ".json", JSON.stringify(full), "application/json");
+};
+
+$("rs").onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = async () => {
+    try {
+      const d = JSON.parse(r.result);
+      if (!Array.isArray(d)) throw 0;
+      const ids = new Set(data.map(x => x.aadhar));
+      for (const x of d) {
+        if (!ids.has(x.aadhar)) {
+          const id = x.id || Date.now();
+          if (x.photo) { await savePhotoIDB(id, x.photo); photoCache[id] = x.photo; }
+          x.photoId = id; delete x.photo; data.push(x);
+        }
+      }
+      persist(); render();
+    } catch { alert("Backup file sahi nahi hai."); }
+  };
+  r.readAsText(f);
+};
+
+// ── Search & Reprint ────────────────────────────────────────────────────────────────────────────
+let srTimer = null;
+$('srQ').addEventListener('input', () => {
+  clearTimeout(srTimer);
+  srTimer = setTimeout(searchReprint, 180);
+});
+$('srClear').onclick = () => { $('srQ').value = ''; searchReprint(); };
+
+function searchReprint() {
+  const q = $('srQ').value.trim().toLowerCase();
+  const res = $('srResults');
+  const empty = $('srEmpty');
+  res.innerHTML = '';
+  if (!q) { empty.style.display = 'none'; return; }
+
+  const matches = data.filter(x =>
+    [x.name, x.aadhar, x.mobile, x.site, x.desig, x.rel]
+      .join(' ').toLowerCase().includes(q)
+  );
+
+  if (!matches.length) { empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+
+  matches.forEach(x => {
+    const img = photoCache[x.photoId || x.id] || '';
+    const card = document.createElement('div');
+    card.className = 'srCard';
+    card.innerHTML = `
+      ${img ? `<img src="${img}" alt="">` : `<div style="width:60px;height:75px;background:#eef2ef;border-radius:4px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--mut)">No photo</div>`}
+      <div class="srInfo">
+        <div class="srName">${esc(x.name)}</div>
+        <div class="srMeta">
+          <span>SL: ${esc(x.sl)} &nbsp;|&nbsp; ${esc(x.desig)}</span>
+          <span>Site: ${esc(x.site)}</span>
+          <span>Joining: ${fmt(x.joining)}</span>
+          <span>Mobile: ${esc(x.mobile)}</span>
+          <span>Aadhar: ${esc(x.aadhar)}</span>
+          ${x.uan ? `<span>UAN: ${esc(x.uan)}</span>` : ''}
+        </div>
+      </div>
+      <div class="srActions">
+        <button class="sm" data-id="${x.id}">Print PDF</button>
+        <button class="sm alt" data-edit="${x.id}">Edit</button>
+      </div>`;
+    card.querySelector('[data-id]').onclick = () => doPrint(x.id);
+    card.querySelector('[data-edit]').onclick = () => { edit(x.id); $('srQ').value = ''; searchReprint(); };
+    res.appendChild(card);
+  });
+}
+
+// ── Online/offline listeners ────────────────────────────────────────────────────────────────────────────
+window.addEventListener("online",  () => flushQueue());
+window.addEventListener("offline", () => badge("err", "Offline"));
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+async function init() {
+  await openPhotoDB();
+  await loadAllPhotos();
+  addEx(); $("sl").value = nextSl(); render(); updatePendingBar();
+
+  // Try to load latest data from Google Sheets
+  try {
+    badge("busy", "Loading…");
+    const result = await apiGet();
+    if (result.ok && result.data.length) {
+      // Merge Sheet data into local — Sheet is source of truth
+      const sheetIds = new Set(result.data.map(x => String(x.ID)));
+      // Add any Sheet records not in local cache
+      result.data.forEach(row => {
+        const id = Number(row.ID);
+        if (!data.find(x => x.id === id)) {
+          data.push({
+            id, sl: row.SL, joining: row["Joining Date"], site: row.Site,
+            desig: row.Designation, name: row.Name, dob: row.DOB, age: row.Age,
+            gender: row.Gender, marital: row["Marital Status"], blood: row["Blood Group"],
+            rel: row["Relation Name"], mobile: row.Mobile, emerg: row["Emergency Contact"],
+            aadhar: row.Aadhar, uan: row.UAN, esic: row.ESIC, wage: row.Wages,
+            taddr: row["Temp Address"], paddr: row["Perm Address"], pin: row.Pincode,
+            bank: row["Bank Name"], acc: row["Account No"], ifsc: row.IFSC,
+            branch: row.Branch, nom: row.Nominee, nrel: row["Nominee Relation"],
+            ncon: row["Nominee Contact"], edu: row.Education, tech: row["Technical Qual"],
+            train: row.Training,
+            exps: (() => { try { return JSON.parse(row.Experience || "[]"); } catch { return []; } })(),
+            place: row.Place, added: row["Added On"],
+            photoId: id
+          });
+        }
+      });
+      persist(); render();
+      badge("ok", "Synced ✓");
+    } else {
+      badge("ok", "Connected ✓");
+    }
+  } catch {
+    badge("err", "Offline");
+  }
+
+  // Flush any pending queue
+  flushQueue();
+}
+
+// Show login screen on load; init() is called only after successful login
+if (isLoggedIn()) {
+  $("loginScreen").style.display = "none";
+  init();
+}
+</script></body></html>
