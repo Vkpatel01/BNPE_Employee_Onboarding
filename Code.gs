@@ -11,41 +11,25 @@ const FOLDER_NAME = "Employee Photos";
 
 // ── Entry point for POST requests ────────────────────────────────────────────
 function doPost(e) {
-  const cors = ContentService.createTextOutput();
-  cors.setMimeType(ContentService.MimeType.JSON);
-
   try {
     const payload = JSON.parse(e.postData.contents);
-
-    // Validate secret
-    if (payload.secret !== SECRET) {
-      cors.setContent(JSON.stringify({ ok: false, error: "Unauthorized" }));
-      return cors;
-    }
-
+    if (payload.secret !== SECRET) return respond({ ok: false, error: "Unauthorized" });
     const action = payload.action || "save";
-
-    if (action === "save")   { return respond(saveEmployee(payload.data)); }
-    if (action === "update") { return respond(updateEmployee(payload.data)); }
-    if (action === "delete") { return respond(deleteEmployee(payload.id)); }
-    if (action === "list")   { return respond(listEmployees()); }
-
+    if (action === "save")   return respond(saveEmployee(payload.data));
+    if (action === "update") return respond(updateEmployee(payload.data));
+    if (action === "delete") return respond(deleteEmployee(payload.id));
+    if (action === "list")   return respond(listEmployees());
     return respond({ ok: false, error: "Unknown action" });
-
   } catch (err) {
     return respond({ ok: false, error: err.message });
   }
 }
 
-// GET — used to load all employees on page open
 function doGet(e) {
-  if (e.parameter.secret !== SECRET) {
-    return respond({ ok: false, error: "Unauthorized" });
-  }
+  if (e.parameter.secret !== SECRET) return respond({ ok: false, error: "Unauthorized" });
   return respond(listEmployees());
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 function respond(obj) {
   return ContentService
     .createTextOutput(JSON.stringify(obj))
