@@ -606,8 +606,9 @@
         <div>
           <video id="vid" autoplay playsinline muted hidden></video>
           <div class="row">
-            <button type="button" class="alt" id="camOn">Start webcam</button>
+            <button type="button" class="alt" id="camOn">Start camera</button>
             <button type="button" id="snap" hidden>Capture</button>
+            <button type="button" class="alt" id="camFlip" hidden>🔄 Switch camera</button>
             <button type="button" class="alt" id="camOff" hidden>Stop</button>
             <button type="button" class="alt" id="uploadPhotoBtn">Upload photo</button>
             <input type="file" id="file" accept="image/*" hidden>
@@ -858,17 +859,45 @@
     };
     $("uploadPhotoBtn").onclick = () => $("file").click();
 
+    let currentFacingMode = "environment"; // default to rear camera on mobile
+
     function stopCam() {
       if (stream) stream.getTracks().forEach(t => t.stop());
       stream = null;
-      $("vid").hidden = $("snap").hidden = $("camOff").hidden = true;
+      $("vid").hidden = $("snap").hidden = $("camFlip").hidden = $("camOff").hidden = true;
     }
-    $("camOn").onclick = async () => {
+
+    async function startCam(facing = currentFacingMode) {
+      if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
+      }
+      currentFacingMode = facing;
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: currentFacingMode },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
+        });
         $("vid").srcObject = stream;
-        $("vid").hidden = $("snap").hidden = $("camOff").hidden = false;
-      } catch { setMsg("Unable to access camera. Please allow camera permissions in your browser.", "err"); }
+        $("vid").hidden = $("snap").hidden = $("camFlip").hidden = $("camOff").hidden = false;
+      } catch (err) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          $("vid").srcObject = stream;
+          $("vid").hidden = $("snap").hidden = $("camFlip").hidden = $("camOff").hidden = false;
+        } catch {
+          setMsg("Unable to access camera. Please allow camera permissions in your browser.", "err");
+        }
+      }
+    }
+
+    $("camOn").onclick = () => startCam(currentFacingMode);
+    $("camFlip").onclick = () => {
+      const nextMode = currentFacingMode === "environment" ? "user" : "environment";
+      startCam(nextMode);
     };
     $("camOff").onclick = stopCam;
     $("snap").onclick = () => {
