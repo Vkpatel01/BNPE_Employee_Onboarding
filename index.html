@@ -409,7 +409,7 @@ function validate(o) {
   if (!/^\d{12}$/.test(o.aadhar))              return "Aadhar 12 digit ka hona chahiye.";
   if (!/^\d{10}$/.test(o.mobile))              return "Mobile number 10 digit ka hona chahiye.";
   if (o.emerg && !/^\d{10}$/.test(o.emerg))    return "Emergency number 10 digit ka hona chahiye.";
-  if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(o.ifsc)) return "IFSC code galat hai (e.g. SBIN0001234).";
+  if (!/^[A-Z0-9]{11}$/.test(o.ifsc)) return "IFSC code 11 characters ka hona chahiye.";
   if (!/^\d{9,18}$/.test(o.acc))               return "Bank account number 9-18 digit ka hona chahiye.";
   if (o.pin && !/^\d{6}$/.test(o.pin))         return "Pincode 6 digit ka hona chahiye.";
   if (o.uan && !/^\d{12}$/.test(o.uan))        return "UAN 12 digit ka hota hai.";
